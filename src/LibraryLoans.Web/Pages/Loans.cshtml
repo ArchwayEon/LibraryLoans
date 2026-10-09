@@ -1,0 +1,59 @@
+@page "/loans"
+@inject Library Library
+@{
+    ViewData["Title"] = "My loans";
+}
+
+<h1>My loans</h1>
+
+<p id="status" role="status">@Message</p>
+<p>Fines owed: $<span id="fines">@Fines.ToString("0.00")</span></p>
+
+<table aria-label="My loans">
+    <thead>
+        <tr><th scope="col">Title</th><th scope="col">Due</th><th scope="col">Action</th></tr>
+    </thead>
+    <tbody id="loans">
+        @foreach (var (loan, title) in Loans)
+        {
+            <tr data-loan-id="@loan.Id">
+                <th scope="row">@title.Name</th>
+                <td><time datetime="@loan.DueOn.ToString("yyyy-MM-dd")">@loan.DueOn.ToString("yyyy-MM-dd")</time></td>
+                <td><button type="button">Return</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script>
+    document.getElementById('loans').addEventListener('click', async (event) => {
+        if (event.target.tagName !== 'BUTTON') return;
+
+        const row = event.target.closest('tr');
+        event.target.disabled = true;
+
+        const response = await fetch('/api/loans/' + row.dataset.loanId + '/return', { method: 'POST' });
+        const result = await response.json();
+
+        if (result.ok) row.remove();
+        document.getElementById('status').textContent = result.message;
+        document.getElementById('fines').textContent = result.fines;
+    });
+</script>
+
+@functions {
+    public List<(Loan Loan, Title Title)> Loans { get; set; } = [];
+    public decimal Fines { get; set; }
+    public string? Message { get; set; }
+
+    public void OnGet(int? borrowed)
+    {
+        var username = User.Identity!.Name!;
+        Loans = Library.LoansFor(username);
+        Fines = Library.GetMember(username).Fines;
+
+        var justBorrowed = Loans.FirstOrDefault(x => x.Loan.Id == borrowed);
+        if (justBorrowed.Loan is not null)
+            Message = $"Borrowed {justBorrowed.Title.Name}. Due {justBorrowed.Loan.DueOn:yyyy-MM-dd}.";
+    }
+}

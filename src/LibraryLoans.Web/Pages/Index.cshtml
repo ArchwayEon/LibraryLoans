@@ -1,0 +1,45 @@
+@page
+@{
+    ViewData["Title"] = "Catalog";
+}
+
+<h1>Catalog</h1>
+
+<form id="search-form" role="search">
+    <label for="q">Search the catalog</label>
+    <input id="q" type="search" />
+    <button type="submit">Search</button>
+</form>
+
+<p id="search-status" role="status"></p>
+<ul id="results" aria-label="Search results"></ul>
+
+<script>
+    const form = document.getElementById('search-form');
+    const status = document.getElementById('search-status');
+    const results = document.getElementById('results');
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        results.replaceChildren();
+        status.textContent = 'Searching...';
+
+        const query = document.getElementById('q').value;
+        const response = await fetch('/api/titles?q=' + encodeURIComponent(query));
+        const titles = await response.json();
+
+        for (const title of titles) {
+            const link = document.createElement('a');
+            link.href = '/titles/' + title.id;
+            link.textContent = title.name;
+
+            const item = document.createElement('li');
+            item.append(link, ' by ' + title.author);
+            results.append(item);
+        }
+
+        status.textContent = titles.length === 0
+            ? 'No titles found.'
+            : titles.length + (titles.length === 1 ? ' title found.' : ' titles found.');
+    });
+</script>

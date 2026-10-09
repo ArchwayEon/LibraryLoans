@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - LibraryLoans</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+        nav { display: flex; gap: 1rem; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: .75rem; }
+        nav form { margin-left: auto; }
+        label { display: block; margin-top: .75rem; }
+        input, button { font: inherit; padding: .3rem .6rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #ddd; }
+        [role=alert] { color: #a40000; font-weight: 600; }
+        [role=status] { color: #0b5d1e; font-weight: 600; min-height: 1.5rem; }
+    </style>
+</head>
+<body>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <nav aria-label="Main">
+            <strong>LibraryLoans</strong>
+            <a href="/">Catalog</a>
+            <a href="/loans">My loans</a>
+            <form method="post" action="/logout">
+                <button type="submit">Log out @User.Identity.Name</button>
+            </form>
+        </nav>
+    }
+    <main>
+        @RenderBody()
+    </main>
+</body>
+</html>

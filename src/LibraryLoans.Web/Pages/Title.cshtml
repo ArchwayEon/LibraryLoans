@@ -1,0 +1,70 @@
+@page "/titles/{id:int}"
+@inject Library Library
+@{
+    ViewData["Title"] = Item.Name;
+}
+
+<h1>@Item.Name</h1>
+<p>by @Item.Author</p>
+
+@if (Error is not null)
+{
+    <p role="alert">@Error</p>
+}
+@if (Message is not null)
+{
+    <p role="status">@Message</p>
+}
+
+@if (Available > 0)
+{
+    <p>@Available @(Available == 1 ? "copy" : "copies") available</p>
+    <form method="post" asp-page-handler="Borrow">
+        <button type="submit">Borrow</button>
+    </form>
+}
+else
+{
+    <p>No copies available</p>
+    <form method="post" asp-page-handler="Hold">
+        <button type="submit">Place hold</button>
+    </form>
+}
+
+@functions {
+    public Title Item { get; set; } = null!;
+    public int Available { get; set; }
+    public string? Error { get; set; }
+    public string? Message { get; set; }
+
+    public IActionResult OnGet(int id) => Load(id) ? Page() : NotFound();
+
+    public IActionResult OnPostBorrow(int id)
+    {
+        if (!Load(id)) return NotFound();
+
+        var result = Library.Borrow(User.Identity!.Name!, id);
+        if (result.Ok) return Redirect($"/loans?borrowed={result.Loan!.Id}");
+
+        Error = result.Message;
+        return Page();
+    }
+
+    public IActionResult OnPostHold(int id)
+    {
+        if (!Load(id)) return NotFound();
+
+        var result = Library.PlaceHold(User.Identity!.Name!, id);
+        if (result.Ok) Message = result.Message; else Error = result.Message;
+        return Page();
+    }
+
+    private bool Load(int id)
+    {
+        var title = Library.GetTitle(id);
+        if (title is null) return false;
+        Item = title;
+        Available = Library.AvailableCopies(id);
+        return true;
+    }
+}

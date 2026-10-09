@@ -1,0 +1,46 @@
+@page "/login"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@inject Library Library
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<h1>Log in</h1>
+
+@if (Error is not null)
+{
+    <p role="alert">@Error</p>
+}
+
+<form method="post">
+    <label for="username">Username</label>
+    <input id="username" name="Username" value="@Username" autocomplete="username" />
+
+    <label for="password">Password</label>
+    <input id="password" name="Password" type="password" autocomplete="current-password" />
+
+    <p><button type="submit">Log in</button></p>
+</form>
+
+@functions {
+    [BindProperty] public string? Username { get; set; }
+    [BindProperty] public string? Password { get; set; }
+    public string? Error { get; set; }
+
+    public async Task<IActionResult> OnPostAsync()
+    {
+        var member = Library.FindMember(Username ?? "", Password ?? "");
+        if (member is null)
+        {
+            Error = "Invalid username or password.";
+            return Page();
+        }
+
+        var identity = 
+            new ClaimsIdentity(
+                [new Claim(ClaimTypes.Name, member.Username)], "Cookies");
+        await HttpContext.SignInAsync("Cookies", new ClaimsPrincipal(identity));
+        return Redirect("/");
+    }
+}
