@@ -1,38 +1,20 @@
 using Microsoft.Playwright;
-using Microsoft.Playwright.NUnit;
 
 namespace LibraryLoans.SystemTests;
 
-public class SearchTests : PageTest
+public class SearchTests : LibraryTest
 {
-    [SetUp]
-    public async Task LogIn()
-    {
-        await Page.GotoAsync("http://localhost:5080/login");
-        await Page.GetByLabel("Username").FillAsync("bob");
-        await Page.GetByLabel("Password").FillAsync("password2");
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Log in" }).ClickAsync();
-    }
-
     [Test]
-    public async Task Search_brittle()
+    public async Task Search_shows_matching_titles()
     {
-        await Page.FillAsync("#q", "Emma");
-        await Page.ClickAsync("#search-form button");
+        var member = await TestData.CreateMemberAsync();
+        var title = await TestData.CreateTitleAsync("Emma");
 
-        var count = await Page.Locator("#results li").CountAsync();
-        Assert.That(count, Is.EqualTo(1));
-    }
-
-    [Test]
-    public async Task Search_robust()
-    {
-        await Page.GetByLabel("Search the catalog").FillAsync("Emma");
+        await LogInAsync(member);
+        await Page.GetByLabel("Search the catalog").FillAsync(title.Name);
         await Page.GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
 
-        var results = Page.GetByRole(AriaRole.List, new() { Name = "Search results" })
-                          .GetByRole(AriaRole.Listitem);
-        await Expect(results).ToHaveCountAsync(1);
-        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "Emma" })).ToBeVisibleAsync();
+        await Expect(Page.GetByRole(AriaRole.Status)).ToHaveTextAsync("1 title found.");
+        await Expect(Page.GetByRole(AriaRole.Link, new() { Name = title.Name })).ToBeVisibleAsync();
     }
 }
