@@ -1,4 +1,4 @@
-using Microsoft.Playwright;
+using LibraryLoans.SystemTests.Pages;
 
 namespace LibraryLoans.SystemTests;
 
@@ -10,13 +10,13 @@ public class BorrowTests : LibraryTest
         var member = await TestData.CreateMemberAsync();
         var title = await TestData.CreateTitleAsync("Dune");
 
-        await LogInAsync(member);
-        await OpenTitleAsync(title.Name);
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Borrow" }).ClickAsync();
+        var catalog = await new LoginPage(Page).LogInAsync(member);
+        var titlePage = await catalog.OpenTitleAsync(title.Name);
+        var loans = await titlePage.BorrowAsync();
 
-        var due = DateTime.Today.AddDays(21).ToString("yyyy-MM-dd");
-        await Expect(Page.GetByRole(AriaRole.Status))
-            .ToHaveTextAsync($"Borrowed {title.Name}. Due {due}.");
+        await Expect(loans.Status).ToContainTextAsync($"Borrowed {title.Name}");
+        Assert.That(await loans.DueDateAsync(title.Name),
+            Is.EqualTo(DateOnly.FromDateTime(DateTime.Today).AddDays(21)));
     }
 
     [Test]
@@ -25,13 +25,13 @@ public class BorrowTests : LibraryTest
         var member = await TestData.CreateMemberAsync(loans: 5);
         var title = await TestData.CreateTitleAsync("Dune");
 
-        await LogInAsync(member);
-        await OpenTitleAsync(title.Name);
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Borrow" }).ClickAsync();
+        var catalog = await new LoginPage(Page).LogInAsync(member);
+        var titlePage = await catalog.OpenTitleAsync(title.Name);
+        await titlePage.BorrowExpectingRefusalAsync();
 
-        await Expect(Page.GetByRole(AriaRole.Alert)).ToContainTextAsync("Loan limit reached");
+        await Expect(titlePage.Error).ToContainTextAsync("Loan limit reached");
 
-        await Page.GetByRole(AriaRole.Link, new() { Name = "My loans" }).ClickAsync();
-        await Expect(Page.GetByRole(AriaRole.Rowheader)).ToHaveCountAsync(5);
+        var loans = await MyLoansPage.OpenAsync(Page);
+        await Expect(loans.LoanTitles).ToHaveCountAsync(5);
     }
 }

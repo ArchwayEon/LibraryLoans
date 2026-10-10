@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
+using NUnit.Framework.Interfaces;
 
 namespace LibraryLoans.SystemTests;
 
@@ -10,20 +11,30 @@ public abstract class LibraryTest : PageTest
     public override BrowserNewContextOptions ContextOptions() => new() { BaseURL = BaseUrl };
 
     [SetUp]
-    public void UseShortTimeouts() => Page.SetDefaultTimeout(5_000);
-
-    protected async Task LogInAsync(Member member)
+    public async Task StartTrace()
     {
-        await Page.GotoAsync("/login");
-        await Page.GetByLabel("Username").FillAsync(member.Username);
-        await Page.GetByLabel("Password").FillAsync(member.Password);
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Log in" }).ClickAsync();
+        Page.SetDefaultTimeout(5_000);
+
+        await Context.Tracing.StartAsync(new()
+        {
+            Title = TestContext.CurrentContext.Test.Name,
+            Screenshots = true,
+            Snapshots = true,
+            Sources = true
+        });
     }
 
-    protected async Task OpenTitleAsync(string title)
+    [TearDown]
+    public async Task SaveTraceIfFailed()
     {
-        await Page.GetByLabel("Search the catalog").FillAsync(title);
-        await Page.GetByRole(AriaRole.Button, new() { Name = "Search" }).ClickAsync();
-        await Page.GetByRole(AriaRole.Link, new() { Name = title }).ClickAsync();
+        var failed = TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Failed;
+
+        await Context.Tracing.StopAsync(new()
+        {
+            Path = failed
+                ? Path.Combine(TestContext.CurrentContext.WorkDirectory, "playwright-traces",
+                               $"{TestContext.CurrentContext.Test.Name}.zip")
+                : null
+        });
     }
 }
