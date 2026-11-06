@@ -92,6 +92,24 @@ if (app.Environment.IsDevelopment())
         var loan = library.AddLoan(request.Username, request.TitleId, request.DueInDays);
         return new { loan.Id };
     });
+
+    app.MapPost("/test/loans/{id:int}/renewals", (int id, SetRenewals request, Library library) =>
+    {
+        library.SetRenewals(id, request.Renewals);
+        return new { id, request.Renewals };
+    });
+
+    app.MapPost("/test/holds", (NewHold request, Library library) =>
+    {
+        var result = library.PlaceHold(request.Username, request.TitleId);
+        return result.Ok ? Results.Ok(new { result.Message }) : Results.BadRequest(new { result.Message });
+    });
+
+    app.MapPost("/test/members/{username}/fines", (string username, SetFines request, Library library) =>
+    {
+        library.GetMember(username).Fines = request.Fines;
+        return new { username, request.Fines };
+    });
 }
 
 app.Run();
@@ -100,3 +118,6 @@ record SetClock(DateOnly Date);
 record NewTitle(string Name, int Copies = 1);
 record NewMember(int Loans = 0, decimal Fines = 0);
 record NewLoan(string Username, int TitleId, int DueInDays = Library.LoanDays);
+record SetRenewals(int Renewals);
+record NewHold(string Username, int TitleId);
+record SetFines(decimal Fines);

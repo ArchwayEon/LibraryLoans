@@ -206,4 +206,13 @@ public class Library
             return loan;
         }
     }
+
+    public void SetRenewals(int loanId, int renewals)
+    {
+        lock (_gate)
+        {
+            var index = _loans.FindIndex(l => l.Id == loanId);
+            _loans[index] = _loans[index] with { Renewals = renewals };
+        }
+    }
 }

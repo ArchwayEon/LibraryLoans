@@ -7,6 +7,8 @@ public record TestMember(string Username, string Password, string Name);
 
 public record TestTitle(int Id, string Name);
 
+public record TestLoan(int Id);
+
 /// <summary>Arranges system state through the app's Development-only /test endpoints.</summary>
 public class TestSupportClient
 {
@@ -18,8 +20,17 @@ public class TestSupportClient
     public Task<TestTitle> CreateTitleAsync(string name) =>
         PostAsync<TestTitle>("/test/titles", new { name, copies = 1 });
 
-    public Task CreateLoanAsync(TestMember member, TestTitle title, int dueInDays) =>
-        PostAsync<object>("/test/loans", new { username = member.Username, titleId = title.Id, dueInDays });
+    public Task<TestLoan> CreateLoanAsync(TestMember member, TestTitle title, int dueInDays) =>
+        PostAsync<TestLoan>("/test/loans", new { username = member.Username, titleId = title.Id, dueInDays });
+
+    public Task SetRenewalsAsync(TestLoan loan, int renewals) =>
+        PostAsync<object>($"/test/loans/{loan.Id}/renewals", new { renewals });
+
+    public Task PlaceHoldAsync(TestMember member, TestTitle title) =>
+        PostAsync<object>("/test/holds", new { username = member.Username, titleId = title.Id });
+
+    public Task SetFinesAsync(TestMember member, decimal fines) =>
+        PostAsync<object>($"/test/members/{member.Username}/fines", new { fines });
 
     /// <summary>Sets the date the application treats as today.</summary>
     public Task SetClockAsync(DateOnly date) =>
