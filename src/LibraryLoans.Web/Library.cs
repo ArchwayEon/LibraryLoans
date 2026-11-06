@@ -7,7 +7,7 @@ public record Member(string Username, string Password, string Name)
 
 public record Title(int Id, string Name, string Author, int Copies);
 
-public record Loan(int Id, string Username, int TitleId, DateOnly DueOn);
+public record Loan(int Id, string Username, int TitleId, DateOnly DueOn, int Renewals = 0);
 
 public record Result(bool Ok, string Message, Loan? Loan = null);
 
@@ -135,6 +135,30 @@ public class Library
             var fine = daysLate * FinePerDay;
             member.Fines += fine;
             return new(true, $"Returned {title.Name}. Overdue by {daysLate} days: fine ${fine:0.00}.");
+        }
+    }
+
+    /// <summary>LL-12: renews a loan, extending it from its current due date.</summary>
+    public Result Renew(string username, int loanId)
+    {
+        lock (_gate)
+        {
+            var index = _loans.FindIndex(l => l.Id == loanId && l.Username == username);
+            if (index < 0) return new(false, "No open loan was found.");
+
+            var loan = _loans[index];
+            var title = _titles.First(t => t.Id == loan.TitleId);
+
+            if (loan.DueOn < Today)                                         // AC4
+                return new(false, "Overdue loans cannot be renewed.");
+
+            var renewed = loan with                                          // AC1
+            {
+                DueOn = loan.DueOn.AddDays(LoanDays),
+                Renewals = loan.Renewals + 1
+            };
+            _loans[index] = renewed;
+            return new(true, $"Renewed {title.Name}. Due {renewed.DueOn:yyyy-MM-dd}.", renewed);
         }
     }
 
