@@ -3,6 +3,7 @@
     <Project Path="src/LibraryLoans.Web/LibraryLoans.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/LibraryLoans.AcceptanceTests/LibraryLoans.AcceptanceTests.csproj" />
     <Project Path="tests/LibraryLoans.SystemTests/LibraryLoans.SystemTests.csproj" />
   </Folder>
 </Solution>
