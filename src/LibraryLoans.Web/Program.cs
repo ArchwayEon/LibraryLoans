@@ -4,6 +4,17 @@ using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The Development build gets a clock the tests can set; every other build uses the real clock.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<TestClock>();
+    builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<TestClock>());
+}
+else
+{
+    builder.Services.AddSingleton(TimeProvider.System);
+}
+
 builder.Services.AddSingleton<Library>();
 builder.Services.AddAuthentication("Cookies")
     .AddCookie("Cookies", options => options.LoginPath = "/login");
@@ -50,6 +61,14 @@ if (app.Environment.IsDevelopment())
 {
     app.MapPost("/test/reset", (Library library) => library.Reset());
 
+    app.MapPost("/test/clock", (SetClock request, TestClock clock) =>
+    {
+        clock.Today = request.Date;
+        return new { request.Date };
+    });
+
+    app.MapDelete("/test/clock", (TestClock clock) => clock.Today = null);
+
     app.MapPost("/test/titles", (NewTitle request, Library library) =>
     {
         var tag = Guid.NewGuid().ToString("N")[..6];
@@ -77,6 +96,7 @@ if (app.Environment.IsDevelopment())
 
 app.Run();
 
+record SetClock(DateOnly Date);
 record NewTitle(string Name, int Copies = 1);
 record NewMember(int Loans = 0, decimal Fines = 0);
 record NewLoan(string Username, int TitleId, int DueInDays = Library.LoanDays);

@@ -21,9 +21,13 @@ public class TestSupportClient
     public Task CreateLoanAsync(TestMember member, TestTitle title, int dueInDays) =>
         PostAsync<object>("/test/loans", new { username = member.Username, titleId = title.Id, dueInDays });
 
-    /// <summary>Sets the application's clock. Not yet provided by the app; LL-12 adds it.</summary>
+    /// <summary>Sets the date the application treats as today.</summary>
     public Task SetClockAsync(DateOnly date) =>
         PostAsync<object>("/test/clock", new { date = date.ToString("yyyy-MM-dd") });
+
+    /// <summary>Returns the application to the real date.</summary>
+    public async Task ResetClockAsync() =>
+        (await Http.DeleteAsync("/test/clock")).EnsureSuccessStatusCode();
 
     private static async Task<T> PostAsync<T>(string path, object body)
     {

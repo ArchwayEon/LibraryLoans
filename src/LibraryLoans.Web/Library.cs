@@ -19,15 +19,20 @@ public class Library
     public const decimal FinePerDay = 0.25m;
 
     private readonly Lock _gate = new();
+    private readonly TimeProvider _time;
     private readonly List<Member> _members = [];
     private readonly List<Title> _titles = [];
     private readonly List<Loan> _loans = [];
     private readonly List<(string Username, int TitleId)> _holds = [];
     private int _nextId;
 
-    public Library() => Reset();
+    public Library(TimeProvider time)
+    {
+        _time = time;
+        Reset();
+    }
 
-    public static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    public DateOnly Today => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
 
     public void Reset()
     {
