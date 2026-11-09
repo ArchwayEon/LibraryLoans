@@ -11,7 +11,7 @@
 
 <table aria-label="My loans">
     <thead>
-        <tr><th scope="col">Title</th><th scope="col">Due</th><th scope="col">Action</th></tr>
+        <tr><th scope="col">Title</th><th scope="col">Due</th><th scope="col">Actions</th></tr>
     </thead>
     <tbody id="loans">
         @foreach (var (loan, title) in Loans)
@@ -19,7 +19,12 @@
             <tr data-loan-id="@loan.Id">
                 <th scope="row">@title.Name</th>
                 <td><time datetime="@loan.DueOn.ToString("yyyy-MM-dd")">@loan.DueOn.ToString("yyyy-MM-dd")</time></td>
-                <td><button type="button">Return</button></td>
+                <td>
+                    <button type="button" data-action="return">Return</button>
+                    <form method="post" asp-page-handler="Renew" asp-route-loanId="@loan.Id" style="display:inline">
+                        <button type="submit">Renew</button>
+                    </form>
+                </td>
             </tr>
         }
     </tbody>
@@ -27,7 +32,7 @@
 
 <script>
     document.getElementById('loans').addEventListener('click', async (event) => {
-        if (event.target.tagName !== 'BUTTON') return;
+        if (!event.target.matches('button[data-action="return"]')) return;
 
         const row = event.target.closest('tr');
         event.target.disabled = true;
@@ -55,5 +60,14 @@
         var justBorrowed = Loans.FirstOrDefault(x => x.Loan.Id == borrowed);
         if (justBorrowed.Loan is not null)
             Message = $"Borrowed {justBorrowed.Title.Name}. Due {justBorrowed.Loan.DueOn:yyyy-MM-dd}.";
+
+        Message ??= TempData["Renewal"] as string;
+    }
+
+    // Post/Redirect/Get: refreshing the page after a renewal must not renew again.
+    public IActionResult OnPostRenew(int loanId)
+    {
+        TempData["Renewal"] = Library.Renew(User.Identity!.Name!, loanId).Message;
+        return RedirectToPage();
     }
 }

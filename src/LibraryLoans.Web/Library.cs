@@ -7,7 +7,7 @@ public record Member(string Username, string Password, string Name)
 
 public record Title(int Id, string Name, string Author, int Copies);
 
-public record Loan(int Id, string Username, int TitleId, DateOnly DueOn);
+public record Loan(int Id, string Username, int TitleId, DateOnly DueOn, int Renewals = 0);
 
 public record Result(bool Ok, string Message, Loan? Loan = null);
 
@@ -17,17 +17,23 @@ public class Library
     public const int LoanDays = 21;        // R2
     public const decimal FineLimit = 10m;  // R4
     public const decimal FinePerDay = 0.25m;
+    public const int MaxRenewals = 2;      // LL-12 AC2
 
     private readonly Lock _gate = new();
+    private readonly TimeProvider _time;
     private readonly List<Member> _members = [];
     private readonly List<Title> _titles = [];
     private readonly List<Loan> _loans = [];
     private readonly List<(string Username, int TitleId)> _holds = [];
     private int _nextId;
 
-    public Library() => Reset();
+    public Library(TimeProvider time)
+    {
+        _time = time;
+        Reset();
+    }
 
-    public static DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+    public DateOnly Today => DateOnly.FromDateTime(_time.GetLocalNow().DateTime);
 
     public void Reset()
     {
@@ -103,7 +109,7 @@ public class Library
             if (_loans.Count(l => l.Username == username) >= LoanLimit)
                 return new(false, $"Loan limit reached: you may hold at most {LoanLimit} loans.");
             if (member.Fines > FineLimit)
-                return new(false, $"You owe ${member.Fines:0.00} in fines. Pay your fines before borrowing.");
+                return new(false, FinesOwedMessage(member));
             if (AvailableCopies(titleId) <= 0)
                 return new(false, "No copies are available.");
 
@@ -132,6 +138,49 @@ public class Library
             return new(true, $"Returned {title.Name}. Overdue by {daysLate} days: fine ${fine:0.00}.");
         }
     }
+
+    /// <summary>
+    /// LL-12: renews a loan, extending it from its current due date.
+    /// When several rules refuse a renewal, the first check below wins. The librarian has not
+    /// yet said which message should take priority (an open question from the example map).
+    /// </summary>
+    public Result Renew(string username, int loanId)
+    {
+        lock (_gate)
+        {
+            var index = _loans.FindIndex(l => l.Id == loanId && l.Username == username);
+            if (index < 0) return new(false, "No open loan was found.");
+
+            var loan = _loans[index];
+            var title = _titles.First(t => t.Id == loan.TitleId);
+            var member = _members.First(m => m.Username == username);
+
+            if (loan.DueOn < Today)                                         // AC4
+                return new(false, "Overdue loans cannot be renewed.");
+
+            if (loan.Renewals >= MaxRenewals)                               // AC2
+                return new(false, $"{title.Name} has already been renewed twice.");
+
+            // Any other member's hold blocks renewal, even if another copy is on the shelf.
+            // That case is an open question for the librarian.
+            if (_holds.Any(h => h.TitleId == title.Id && h.Username != username))   // AC3
+                return new(false, $"Another member is waiting for {title.Name}.");
+
+            if (member.Fines > FineLimit)                                   // AC5, same limit and message as R4
+                return new(false, FinesOwedMessage(member));
+
+            var renewed = loan with                                          // AC1
+            {
+                DueOn = loan.DueOn.AddDays(LoanDays),
+                Renewals = loan.Renewals + 1
+            };
+            _loans[index] = renewed;
+            return new(true, $"Renewed {title.Name}. Due {renewed.DueOn:yyyy-MM-dd}.", renewed);
+        }
+    }
+
+    private static string FinesOwedMessage(Member member) =>
+        $"You owe ${member.Fines:0.00} in fines. Pay your fines before borrowing.";
 
     public Result PlaceHold(string username, int titleId)
     {
@@ -175,6 +224,15 @@ public class Library
             var loan = new Loan(++_nextId, username, titleId, Today.AddDays(dueInDays));
             _loans.Add(loan);
             return loan;
+        }
+    }
+
+    public void SetRenewals(int loanId, int renewals)
+    {
+        lock (_gate)
+        {
+            var index = _loans.FindIndex(l => l.Id == loanId);
+            _loans[index] = _loans[index] with { Renewals = renewals };
         }
     }
 }

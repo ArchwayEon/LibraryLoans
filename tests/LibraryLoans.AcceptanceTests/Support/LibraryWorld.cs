@@ -12,6 +12,9 @@ public class LibraryWorld
     /// <summary>Titles by the name used in the feature file, such as "Dune".</summary>
     public Dictionary<string, TestTitle> Titles { get; } = new();
 
+    /// <summary>Loans by the title name used in the feature file.</summary>
+    public Dictionary<string, TestLoan> Loans { get; } = new();
+
     public string? LastMessage { get; set; }
 
     /// <summary>
